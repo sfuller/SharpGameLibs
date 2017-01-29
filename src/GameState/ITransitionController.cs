@@ -1,7 +1,7 @@
 using System;
 
 
-namespace SFuller.SharpGameLibs {
+namespace SFuller.SharpGameLibs.GameState {
     
     public interface ITransitionController {
 
