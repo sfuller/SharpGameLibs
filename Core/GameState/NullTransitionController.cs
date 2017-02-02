@@ -1,6 +1,6 @@
 using System;
 
-namespace SFuller.SharpGameLibs.GameState {
+namespace SFuller.SharpGameLibs.Core.GameState {
 
     public class NullTransitionController : ITransitionController {
 

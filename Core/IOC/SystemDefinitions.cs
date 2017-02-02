@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace SFuller.SharpGameLibs.IOC
+namespace SFuller.SharpGameLibs.Core.IOC
 {
 
     public class SystemDefinition

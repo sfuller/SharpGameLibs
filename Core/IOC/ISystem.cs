@@ -1,6 +1,6 @@
 using System;
 
-namespace SFuller.SharpGameLibs.IOC
+namespace SFuller.SharpGameLibs.Core.IOC
 {
     public interface ISystem
     {

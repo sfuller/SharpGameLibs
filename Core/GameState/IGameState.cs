@@ -1,7 +1,7 @@
 using System;
-using SFuller.SharpGameLibs.IOC;
+using SFuller.SharpGameLibs.Core.IOC;
 
-namespace SFuller.SharpGameLibs.GameState {
+namespace SFuller.SharpGameLibs.Core.GameState {
     
     public interface IGameState {
 

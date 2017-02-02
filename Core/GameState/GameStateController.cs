@@ -1,7 +1,7 @@
 using System;
-using SFuller.SharpGameLibs.IOC;
+using SFuller.SharpGameLibs.Core.IOC;
 
-namespace SFuller.SharpGameLibs.GameState {
+namespace SFuller.SharpGameLibs.Core.GameState {
     
     public class GameStateController : IGameStateController { 
 
@@ -40,7 +40,6 @@ namespace SFuller.SharpGameLibs.GameState {
 
         private void HandleTransitionOutFinished() {
             _currentTransitionController.TransitionOutFinished -= HandleTransitionOutFinished;
-            //_updates.Stop(); 
 
             if (_currentState != null) {
                 _currentState.Exit();
@@ -69,7 +68,6 @@ namespace SFuller.SharpGameLibs.GameState {
 
         private void HandleGameStateReady() {
             _currentState.ReadyToTransitionIn -= HandleGameStateReady;
-            //_updates.Start();
             _currentTransitionController.TransitionInFinished += HandleTransitionInFinished;
             _currentTransitionController.StartTransitionIn();
         }
