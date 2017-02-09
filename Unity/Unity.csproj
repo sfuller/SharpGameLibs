@@ -6,7 +6,7 @@
     <ProjectGuid>{D7C74E5D-6B73-43DC-A6DB-71B59525F341}</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>Unity</RootNamespace>
-    <AssemblyName>Unity</AssemblyName>
+    <AssemblyName>SharpGameLibs.Unity</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -30,9 +30,7 @@
   <ItemGroup>
     <Reference Include="UnityEngine">
         <HintPath>\Applications\Unity\Unity.app\Contents\Managed\UnityEngine.dll</HintPath>
-    </Reference>
-    <Reference Include="UnityEditor">
-      <HintPath>..\..\..\..\..\Applications\Unity\Unity.app\Contents\Managed\UnityEditor.dll</HintPath>
+        <HintPath>C:\Program Files\Unity\Editor\Data\Managed\UnityEngine.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

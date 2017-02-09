@@ -82,6 +82,9 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement {
             }
 
             serializedObject.ApplyModifiedProperties();
+
+            // TODO: Only set dirty when data is changed.
+            EditorUtility.SetDirty(registry);
         }
 
         private void AddNewBinding(List<TypeBinding> bindings) {
@@ -206,7 +209,7 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement {
                 foreach (BindingTarget target in binding.Targets) {
                     int tagIndex = 0;
                     if (tagData != null) {
-                        tagData.Values.IndexOf(target.Tag);
+                        tagIndex = tagData.Values.IndexOf(target.Tag);
                     }
                     var targetView = new TargetView() {
                         Target = target,
