@@ -80,7 +80,8 @@ namespace SFuller.SharpGameLibs.Core.IOC
 
             // Create systems
             var systemsInResolveOrder = new List<ISystem>();
-            GetSystemsInDependencyOrder(node, systemsInResolveOrder);
+            //GetSystemsInDependencyOrder(node, systemsInResolveOrder);
+            GetSystemsInDependencyOrder2(node, systemsInResolveOrder);
             for(int i = 0, ilen = systemsInResolveOrder.Count; i < ilen; ++i)
             {
                 var system = systemsInResolveOrder[i];
@@ -197,6 +198,50 @@ namespace SFuller.SharpGameLibs.Core.IOC
                 GetSystemsInDependencyOrder(children[i], systems);
             }
         }
+
+        public static void GetSystemsInDependencyOrder2(GraphNode node, List<ISystem> systemsInOrder)
+        {
+            List<ISystem> systems = new List<ISystem>();
+            List<GraphNode> children = node.Children;
+
+            Stack<GraphNode> nodeStack = new Stack<GraphNode>();
+            nodeStack.Push(node);
+
+            while (nodeStack.Count > 0)
+            {
+                GraphNode currentNode = nodeStack.Pop();
+
+                List<GraphNode> unresolvedChildren = new List<GraphNode>();
+
+                foreach (GraphNode child in currentNode.Children) {
+                    if (!systems.Contains(child.System))
+                    {
+                        unresolvedChildren.Add(child);
+                    }
+                }
+
+                if (unresolvedChildren.Count > 0)
+                {
+                    nodeStack.Push(currentNode);
+                    foreach (GraphNode child in unresolvedChildren)
+                    {
+                        nodeStack.Push(child);
+                    }
+                }
+                else
+                {
+                    systems.Add(currentNode.System);
+                }
+            }
+
+            // Remove the root graph node
+            systems.RemoveAt(systems.Count - 1);
+
+            systems.Reverse();
+            systemsInOrder.AddRange(systems);
+        }
+
+
 
         private SystemContext m_Context;
         private readonly Dictionary<Type, ISystem> m_Systems = new Dictionary<Type, ISystem>();
