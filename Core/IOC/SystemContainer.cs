@@ -80,8 +80,7 @@ namespace SFuller.SharpGameLibs.Core.IOC
 
             // Create systems
             var systemsInResolveOrder = new List<ISystem>();
-            //GetSystemsInDependencyOrder(node, systemsInResolveOrder);
-            GetSystemsInDependencyOrder2(node, systemsInResolveOrder);
+            GetSystemsInDependencyOrder(node, systemsInResolveOrder);
             for(int i = 0, ilen = systemsInResolveOrder.Count; i < ilen; ++i)
             {
                 var system = systemsInResolveOrder[i];
@@ -182,24 +181,7 @@ namespace SFuller.SharpGameLibs.Core.IOC
             return circularDependencyDetected;
         }
 
-        public static void GetSystemsInDependencyOrder(GraphNode node, List<ISystem> systems)
-        {
-            var children = node.Children;
-            for(int i = 0, ilen = children.Count; i < ilen; ++i)
-            {
-                var child = children[i];
-                if(!systems.Contains(child.System))
-                {
-                    systems.Add(child.System);
-                }
-            }
-            for(int i = 0, ilen = children.Count; i < ilen; ++i)
-            {
-                GetSystemsInDependencyOrder(children[i], systems);
-            }
-        }
-
-        public static void GetSystemsInDependencyOrder2(GraphNode node, List<ISystem> systemsInOrder)
+        public static void GetSystemsInDependencyOrder(GraphNode node, List<ISystem> systemsInOrder)
         {
             List<ISystem> systems = new List<ISystem>();
             List<GraphNode> children = node.Children;
@@ -228,7 +210,7 @@ namespace SFuller.SharpGameLibs.Core.IOC
                         nodeStack.Push(child);
                     }
                 }
-                else
+                else if (!systems.Contains(currentNode.System))
                 {
                     systems.Add(currentNode.System);
                 }
