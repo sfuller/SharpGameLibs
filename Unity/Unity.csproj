@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -28,9 +28,10 @@
     <Compile Include="**\*.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="System" />
     <Reference Include="UnityEngine">
-        <HintPath Condition="Exists('/Applications/Unity/Unity.app')">/Applications/Unity/Unity.app/Contents/Managed/UnityEngine.dll</HintPath>
-        <HintPath Condition="Exists('C:\Program Files\Unity')">C:\Program Files\Unity\Editor\Data\Managed\UnityEngine.dll</HintPath>
+      <HintPath Condition="Exists('/Applications/Unity/Unity.app')">/Applications/Unity/Unity.app/Contents/Managed/UnityEngine.dll</HintPath>
+      <HintPath Condition="Exists('C:\Program Files\Unity')">C:\Program Files\Unity\Editor\Data\Managed\UnityEngine.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
