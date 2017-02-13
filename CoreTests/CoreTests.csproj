@@ -1,12 +1,12 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{9AC0062D-FA4F-40AE-9089-5F65F43122E9}</ProjectGuid>
+    <ProjectGuid>{C8DC74AC-379C-4C46-9576-FA936E44CB26}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>Core</RootNamespace>
-    <AssemblyName>Core</AssemblyName>
+    <RootNamespace>SFuller.SharpGameLibs.CoreTests</RootNamespace>
+    <AssemblyName>SharpGameLibs.CoreTests</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -25,11 +25,24 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Core\Core.csproj">
+      <Project>{9AC0062D-FA4F-40AE-9089-5F65F43122E9}</Project>
+      <Name>Core</Name>
+    </ProjectReference>
+  </ItemGroup>
+    <ItemGroup>
     <Compile Include="**\*.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
+    <Reference Include="nunit.framework">
+      <HintPath>..\packages\NUnit.3.6.0\lib\net35\nunit.framework.dll</HintPath>
+    </Reference>
+    <Reference Include="NSubstitute">
+      <HintPath>..\packages\NSubstitute.1.10.0.0\lib\net35\NSubstitute.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>

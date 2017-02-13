@@ -3,50 +3,6 @@ using System.Collections.Generic;
 
 namespace SFuller.SharpGameLibs.Core.IOC
 {
-
-    public class GraphNode
-    {
-        public GraphNode(Type interfaceType, ISystem system)
-        {
-            Type = interfaceType;
-            System = system;
-        }
-
-        public GraphNode FindChild(Type type)
-        {
-            if(Type == type)
-            {
-                return this;
-            }
-            foreach(var child in Children)
-            {
-                var foundChild = child.FindChild(type);
-                if(foundChild != null)
-                {
-                    return foundChild;
-                }
-            }
-            return null;
-        }
-
-        public readonly Type Type;
-        public readonly ISystem System;
-        public readonly List<GraphNode> Children = new List<GraphNode>();
-    }
-
-    class SystemInfo
-    {
-        public SystemInfo(Type type, ISystem system)
-        {
-            Type = type;
-            Dependencies = system.GetDependencies();
-            System = system;
-        }
-        public readonly Type Type;
-        public readonly Type[] Dependencies;
-        public readonly ISystem System;
-    }
-
     public class SystemContainer
     {
         public void SetContext(SystemContext context)
@@ -114,7 +70,7 @@ namespace SFuller.SharpGameLibs.Core.IOC
             }
         }
 
-        public static bool MakeDependencyGraph(Dictionary<Type, ISystem> systems, out GraphNode graph)
+        private static bool MakeDependencyGraph(Dictionary<Type, ISystem> systems, out GraphNode graph)
         {
             var systemsToResolve = new List<SystemInfo>();
             var nodes = new Dictionary<Type, GraphNode>();
@@ -181,7 +137,7 @@ namespace SFuller.SharpGameLibs.Core.IOC
             return circularDependencyDetected;
         }
 
-        public static void GetSystemsInDependencyOrder(GraphNode node, List<ISystem> systemsInOrder)
+        private static void GetSystemsInDependencyOrder(GraphNode node, List<ISystem> systemsInOrder)
         {
             List<ISystem> systems = new List<ISystem>();
             List<GraphNode> children = node.Children;
@@ -222,8 +178,6 @@ namespace SFuller.SharpGameLibs.Core.IOC
             systems.Reverse();
             systemsInOrder.AddRange(systems);
         }
-
-
 
         private SystemContext m_Context;
         private readonly Dictionary<Type, ISystem> m_Systems = new Dictionary<Type, ISystem>();
