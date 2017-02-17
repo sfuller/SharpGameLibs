@@ -49,6 +49,10 @@ namespace SFuller.SharpGameLibs.Unity.Update
             });
         }
 
+        public void SetTimescale(float timescale) {
+            _timescale = timescale;
+        }
+
         private IEnumerator UpdateCoroutine() {
             for (;;) {
                 Update();
@@ -68,13 +72,16 @@ namespace SFuller.SharpGameLibs.Unity.Update
             }
             _actions.Clear();
 
+            float timestep = Time.deltaTime * _timescale;
+
             for (int i = 0, ilen = _items.Count; i < ilen; ++i) {
                 IUpdatable item = _items[i];
-                item.Update(Time.deltaTime);
+                item.Update(timestep);
             }
         }
 
         private GameObject _obj;
+        private float _timescale = 1f;
         private readonly List<RegistrationAction> _actions = new List<RegistrationAction>();
         private readonly List<IUpdatable> _items = new List<IUpdatable>(4);
     }

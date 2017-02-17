@@ -6,5 +6,7 @@ namespace SFuller.SharpGameLibs.Core.Update
     {
         void Register(IUpdatable updatable);
         void Unregister(IUpdatable updatable);
+
+        void SetTimescale(float scale);
     }
 }
