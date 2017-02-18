@@ -1,5 +1,7 @@
 using System;
 using SFuller.SharpGameLibs.Core.IOC;
+using System.Text;
+using System.Linq;
 
 namespace SFuller.SharpGameLibs.Core.GameState {
     
@@ -54,10 +56,11 @@ namespace SFuller.SharpGameLibs.Core.GameState {
             // Setup new systems
             _systems = new SystemContainer();
             SystemContext context = _nextState.GetSystemContext();
-            context.RegisterWeak(FrameworkSystems);
+            FrameworkSystems.RegisterToContextAsWeak(context);
             _systems.SetContext(context);
-            if (!_systems.Init()) {
-                _logger.LogError("Failed to init game state systems");
+            ContainerInitResult result = _systems.Init();
+            if (result.Status != ContainerInitStatus.Ok) {
+                LogContainerProblems(result);
                 HandleFailedToTransition();
             }
 
@@ -84,6 +87,40 @@ namespace SFuller.SharpGameLibs.Core.GameState {
             if (handler != null) {
                 handler();
             }
+        }
+
+        private void LogContainerProblems(ContainerInitResult result) {
+            var builder = new StringBuilder();
+            builder.Append("Failed to init IOC container for game state ");
+            builder.Append(_nextState.GetType().Name);
+
+            Type[] missing = result.Missing?.ToArray();
+            CircularDependency[] chain = result.Circular?.ToArray();
+
+            if (missing?.Length > 0){
+                builder.Append("\nMissing dependencies: ");
+                for (int i = 0, ilen = missing.Length; i < ilen; ++i) {
+                    builder.Append(missing[i].Name);
+                    if (i < ilen - 1) {
+                        builder.Append(", ");
+                    }
+                }
+            }
+            
+            if (chain?.Length > 0){
+                builder.Append("\nCircular dependency chains: ");
+                for (int i = 0, ilen = chain.Length; i < ilen; ++i) {
+                    Type[] types = chain[i].Chain.ToArray();
+                    for (int j = 0, jlen = types.Length; j < jlen; ++j) {
+                        builder.Append(types[j].Name);
+                        if (j < jlen - 1) {
+                            builder.Append(" -> ");
+                        }
+                    }
+                }
+            }
+
+            _logger.LogError(builder.ToString());
         }
 
         public SystemContainer FrameworkSystems;

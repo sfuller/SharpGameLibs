@@ -2,10 +2,9 @@ using System;
 
 namespace SFuller.SharpGameLibs.Core.IOC
 {
-    public interface ISystem
+    public interface ISystem : IInitializable
     {
         Type[] GetDependencies();
-        void Init(SystemContainer container);
         void Shutdown();
     }
 
