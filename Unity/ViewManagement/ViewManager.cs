@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using SFuller.SharpGameLibs.Core;
+using SFuller.SharpGameLibs.Core.IOC;
+using SFuller.SharpGameLibs.Core.Logging;
 using SFuller.SharpGameLibs.Core.ViewManagement;
 using UnityEngine;
 
@@ -12,13 +13,21 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
 
     public class ViewManager : IViewManager
     {
-        public void Setup(ViewRegistry registry, Core.ILogger logger) {
-            if (logger == null) {
-                logger = new NullLogger();
-            }
-            _logger = logger;
+        public ViewManager(ViewRegistry registry) {
+            _registry = registry;
+        }
 
-            foreach (TypeBinding bindingData in registry.Bindings) {
+        public Type[] GetDependencies() {
+            return null;
+        }
+
+        public void Init(SystemContainer systems) {
+            _logger = systems.Get<Core.Logging.ILogger>();
+            if (_logger == null) {
+                _logger = new NullLogger();
+            }
+
+            foreach (TypeBinding bindingData in _registry.Bindings) {
                 Type type = Type.GetType(bindingData.TypeName);
                 if (type == null) {
                     _logger.LogError(string.Format(
@@ -31,6 +40,9 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
                 binding.Targets.AddRange(bindingData.Targets);
                 _bindings.Add(type, binding);
             }
+        }
+        
+        public void Shutdown() {
         }
 
         public T Instantiate<T>() where T : IView {
@@ -63,7 +75,8 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
             return view;
         }
 
-        private Core.ILogger _logger;
+        private readonly ViewRegistry _registry;
+        private Core.Logging.ILogger _logger;
         private readonly Dictionary<Type, Binding> _bindings = new Dictionary<Type, Binding>();        
     }
 

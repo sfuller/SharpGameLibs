@@ -2,6 +2,7 @@ using System;
 using SFuller.SharpGameLibs.Core.IOC;
 using System.Text;
 using System.Linq;
+using SFuller.SharpGameLibs.Core.Logging;
 
 namespace SFuller.SharpGameLibs.Core.GameState {
     
@@ -14,7 +15,7 @@ namespace SFuller.SharpGameLibs.Core.GameState {
         }
 
         public void Init(SystemContainer systems) {
-            ILogger logger = systems.Get<ILoggerSystem>();
+            ILogger logger = systems.Get<ILogger>();
             if (logger == null) {
                 logger = new NullLogger();
             }

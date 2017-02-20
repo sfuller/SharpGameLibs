@@ -3,8 +3,10 @@ using SFuller.SharpGameLibs.Core.ViewManagement;
 
 namespace SFuller.SharpGameLibs.Core.UI
 {
-    public interface IHUDManager : ISystem
-    {
+    /// <summary>
+    /// Interface to a system which displays a view as the user interface.
+    /// </summary>
+    public interface IUIManager : ISystem {
         void SetHUD(IView view);
     }
 }

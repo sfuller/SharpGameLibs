@@ -5,8 +5,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{96ac27af-9fb8-4b24-bdf8-67db11206e26}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>UnityEditor</RootNamespace>
-    <AssemblyName>SharpGameLibs.UnityEditor</AssemblyName>
+    <RootNamespace>SFuller.SharpGameLibs.UnityEditor</RootNamespace>
+    <AssemblyName>SFuller.SharpGameLibs.UnityEditor</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">

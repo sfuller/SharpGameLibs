@@ -6,16 +6,16 @@ using UnityEngine;
 
 namespace SFuller.SharpGameLibs.Unity.UI
 {
-    public class HUDManager : IHUDManager
+    public class UIManager : IUIManager
     {
         public Type[] GetDependencies() {
             return new Type[] {
-                typeof(IViewManagerSystem)
+                typeof(IViewManager)
             };
         }
 
         public void Init(SystemContainer systems) {
-            _views = systems.Get<IViewManagerSystem>();
+            _views = systems.Get<IViewManager>();
 
             _canvasView = _views.Instantiate<ICanvasView>();
         }
@@ -44,8 +44,7 @@ namespace SFuller.SharpGameLibs.Unity.UI
             behaviour.gameObject.SetActive(false);
         }
 
-        private void EnableView(IView view)
-        {
+        private void EnableView(IView view) {
             if (view == null) {
                 return;
             }
@@ -62,7 +61,6 @@ namespace SFuller.SharpGameLibs.Unity.UI
         private IViewManager _views;
 
         private ICanvasView _canvasView;
-
         private IView _currentHUD;
     }
 }
