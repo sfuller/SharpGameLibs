@@ -5,16 +5,18 @@ namespace SFuller.SharpGameLibs.Unity.UI
 {
     public class CanvasView : MonoBehaviour, ICanvasView
     {
-        public void SetHUD(IView view) {
+        public void SetHUD(IView view, int layer) {
             MonoBehaviour behaviour = view as MonoBehaviour;
             if (behaviour == null) {
                 Debug.LogError("Given view cannot be used as a HUD");
                 return;
             }
 
-            behaviour.transform.SetParent(_canvasTransform, false);
+            var tf = behaviour.transform;
+            tf.SetParent(CanvasTransform, false);
+            tf.SetSiblingIndex(layer);
         }
 
-        [SerializeField] private Transform _canvasTransform;
+        public Transform CanvasTransform;
     }
 }

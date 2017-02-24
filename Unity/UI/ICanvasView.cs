@@ -3,6 +3,6 @@
 namespace SFuller.SharpGameLibs.Unity.UI
 {
     public interface ICanvasView : IView {
-        void SetHUD(IView hud);
+        void SetHUD(IView hud, int layer);
     }
 }

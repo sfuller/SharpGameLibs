@@ -9,12 +9,17 @@ namespace SFuller.SharpGameLibs.Core.UI
     {
         public Type[] GetDependencies() {
             return new Type[] {
-                typeof(IUIManager)
+                typeof(IUIManager),
+                typeof(IViewManager)
             };
         }
 
         public void Init(SystemContainer container) {
             _huds = container.Get<IUIManager>();
+            _viewManager = container.Get<IViewManager>();
+
+            _parentView = _viewManager.Instantiate<IParentView>();
+            _huds.SetHUD(_parentView, 0);
         }
 
         public void Push(IUIScreenController screen) {
@@ -23,6 +28,8 @@ namespace SFuller.SharpGameLibs.Core.UI
                 _screens.Push(_currentScreen);
             }
             screen.Setup(this);
+            IView view = screen.GetView();
+            _parentView.AddChild(view);
             SetupScreen(screen);
         }
 
@@ -35,6 +42,8 @@ namespace SFuller.SharpGameLibs.Core.UI
                 IUIScreenController screen = _screens.Pop();
                 screen.Shutdown();
             }
+
+            _viewManager.Destroy(_parentView);
         }
 
         private void TeardownCurrentScreen() {
@@ -58,8 +67,6 @@ namespace SFuller.SharpGameLibs.Core.UI
 
         private void SetupScreen(IUIScreenController screen) {
             _currentScreen = screen;
-            IView view = screen.GetView();
-            _huds.SetHUD(view);
             screen.Focus();
             screen.Died += HandleCurrentScreenKilled;
         }
@@ -79,7 +86,9 @@ namespace SFuller.SharpGameLibs.Core.UI
         }
 
         private IUIManager _huds;
+        private IViewManager _viewManager;
 
+        private IParentView _parentView;
         private IUIScreenController _currentScreen;
         private Stack<IUIScreenController> _screens = new Stack<IUIScreenController>();
     }

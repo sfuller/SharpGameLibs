@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using SFuller.SharpGameLibs.Core.UI;
 using SFuller.SharpGameLibs.Core.ViewManagement;
 using SFuller.SharpGameLibs.Core.IOC;
@@ -24,10 +25,14 @@ namespace SFuller.SharpGameLibs.Unity.UI
             _views.Destroy(_canvasView);
         }
 
-        public void SetHUD(IView view) {
-            DisableView(_currentHUD);
-            _canvasView.SetHUD(view);
-            _currentHUD = view;
+        public void SetHUD(IView view, int layer) {
+            IView currentView;
+            if (_huds.TryGetValue(layer, out currentView))
+            {
+                DisableView(currentView);
+            }
+            _huds[layer] = view;
+            _canvasView.SetHUD(view, layer);
             EnableView(view);
         }
 
@@ -61,6 +66,6 @@ namespace SFuller.SharpGameLibs.Unity.UI
         private IViewManager _views;
 
         private ICanvasView _canvasView;
-        private IView _currentHUD;
+        private Dictionary<int, IView> _huds = new Dictionary<int, IView>();
     }
 }
