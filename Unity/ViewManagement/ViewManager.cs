@@ -61,7 +61,10 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
 
         public void Destroy<T>(T view) where T : IView {
             MonoBehaviour behaviour = view as MonoBehaviour;
-            GameObject.Destroy(behaviour.gameObject);
+            if (behaviour != null)
+            {
+                GameObject.Destroy(behaviour.gameObject);
+            }
         }
 
         private T GetComponent<T>(GameObject obj) where T : IView {
