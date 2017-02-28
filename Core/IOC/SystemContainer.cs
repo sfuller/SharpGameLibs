@@ -23,21 +23,10 @@ namespace SFuller.SharpGameLibs.Core.IOC
     {
         private interface IRootUnit { };
 
-        private class UnitInfo {
+        public class UnitInfo {
             public ISystem System;
             public Type ConcreteType;
             public BindingMode Mode;
-        }
-
-        private struct GraphGenResult {
-            public Dictionary<Type, GraphNode> Graph;
-            public GraphNode Root;
-            public List<Type> MissingDependencies;
-        }
-
-        private class GraphNode {
-            public Type UnitType;
-            public readonly List<GraphNode> Dependents = new List<GraphNode>(2);
         }
 
         private struct DependencyInfo {
@@ -45,32 +34,12 @@ namespace SFuller.SharpGameLibs.Core.IOC
         }
 
         public void SetContext(SystemContext context) {
-            m_Context = context;
+            _context = context;
+            GenerateUnitInfo();
         }
 
         public ContainerInitResult Init() {
             var result = new ContainerInitResult();
-
-            _units.Clear();
-
-            // Initialize the units
-            IEnumerator<UnitDefinition> it = m_Context.Definitions.GetEnumerator();
-            while (it.MoveNext()) {
-                var current = it.Current;
-
-                var unit = new UnitInfo();
-                unit.Mode = current.Mode;
-                unit.ConcreteType = current.ConcreteType;
-
-                if (current.Mode != BindingMode.Factory) {
-                    unit.System = current.Creator();
-                    if (current.Mode != BindingMode.WeakSystem) {
-                        _ownedSystems.Add(unit.System);
-                    }
-                }
-
-                _units.Add(current.Type, unit);
-            }
 
             // Generate the dependency graph
             var dependencies = new Dictionary<Type, DependencyInfo>();
@@ -106,6 +75,16 @@ namespace SFuller.SharpGameLibs.Core.IOC
             }
             
             return result;
+        }
+
+        /// <summary>
+        /// Creates a dependency graph from all registered units in the context.
+        /// </summary>
+        public GraphGenResult GetDependencyGraph() {
+            var dependencies = new Dictionary<Type, DependencyInfo>();
+
+            MakeDependencyInfo(_units, dependencies);
+            return MakeDependencyGraph(dependencies);
         }
 
         public T Get<T>() where T : class, IInitializable {
@@ -145,6 +124,29 @@ namespace SFuller.SharpGameLibs.Core.IOC
                         )
                     );
                 }
+            }
+        }
+
+        private void GenerateUnitInfo() {
+            _units.Clear();
+            _ownedSystems.Clear();
+
+            IEnumerator<UnitDefinition> it = _context.Definitions.GetEnumerator();
+            while (it.MoveNext()) {
+                var current = it.Current;
+
+                var unit = new UnitInfo();
+                unit.Mode = current.Mode;
+                unit.ConcreteType = current.ConcreteType;
+
+                if (current.Mode != BindingMode.Factory) {
+                    unit.System = current.Creator();
+                    if (current.Mode != BindingMode.WeakSystem) {
+                        _ownedSystems.Add(unit.System);
+                    }
+                }
+
+                _units.Add(current.Type, unit);
             }
         }
 
@@ -299,7 +301,7 @@ namespace SFuller.SharpGameLibs.Core.IOC
             systemsInOrder.AddRange(units);
         }
 
-        private SystemContext m_Context;
+        private SystemContext _context;
 
         private readonly Dictionary<Type, UnitInfo> _units = new Dictionary<Type, UnitInfo>();
         private List<ISystem> _ownedSystems = new List<ISystem>();
