@@ -12,24 +12,38 @@ namespace SFuller.SharpGameLibs.Core.IOC
         }
 
         public void Register<InterfaceT, ConcreteT>() 
-            where InterfaceT : ISystem
             where ConcreteT : InterfaceT, new() 
         {
-            m_Definitions.Add(new UnitDefinition(typeof(InterfaceT), MakeConcrete<ConcreteT>));    
-        }
-
-        public void Register<InterfaceT>(Func<InterfaceT> creatorFunc) 
-            where InterfaceT : ISystem
-        {
-            m_Definitions.Add(new UnitDefinition(typeof(InterfaceT), () => creatorFunc()));
-        }
-
-        public void RegisterWeak<InterfaceT>(Func<InterfaceT> creatorFunc)
-            where InterfaceT : ISystem
-        {
             m_Definitions.Add(
-                new UnitDefinition (
+                new UnitDefinition(
                     typeof(InterfaceT),
+                    null,
+                    MakeConcrete<ConcreteT>,
+                    BindingMode.System
+                )
+            );    
+        }
+
+        public void Register<InterfaceT>(Func<InterfaceT> creatorFunc)  {
+            m_Definitions.Add(
+                new UnitDefinition(
+                    typeof(InterfaceT),
+                    null,
+                    () => creatorFunc(),
+                    BindingMode.System
+                )
+            );
+        }
+
+        public void Register<InterfaceT>(InterfaceT instance) {
+            Register(() => instance);
+        }
+
+        public void RegisterWeak<InterfaceT>(Func<InterfaceT> creatorFunc) {
+            m_Definitions.Add(
+                new UnitDefinition(
+                    typeof(InterfaceT),
+                    null,
                     () => creatorFunc(),
                     BindingMode.WeakSystem
                 )
@@ -37,13 +51,27 @@ namespace SFuller.SharpGameLibs.Core.IOC
         }
 
         public void RegisterFactory<InterfaceT, ConcreteT>()
-            where InterfaceT : IInitializable
             where ConcreteT : InterfaceT, new()
         {
             m_Definitions.Add(
                 new UnitDefinition(
                     typeof(InterfaceT),
-                    typeof(ConcreteT)
+                    typeof(ConcreteT),
+                    MakeConcrete<ConcreteT>,
+                    BindingMode.Factory
+                )
+            );
+        }
+
+        public void RegisterFactory<InterfaceT, ConcreteT>(Func<ConcreteT> creatorFunc)
+            where ConcreteT : InterfaceT
+        {
+            m_Definitions.Add(
+                new UnitDefinition(
+                    typeof(InterfaceT),
+                    typeof(ConcreteT),
+                    () => creatorFunc(),
+                    BindingMode.Factory
                 )
             );
         }
@@ -52,19 +80,7 @@ namespace SFuller.SharpGameLibs.Core.IOC
             m_Definitions.Add(definition);
         }
 
-        //public void RegisterWeak(SystemContainer systems) {
-        //    var it = systems.Systems.GetEnumerator();
-        //    while(it.MoveNext()) {
-        //        KeyValuePair<Type, ISystem> kvp = it.Current;
-        //        m_Definitions.Add(new SystemDefinition (
-        //            kvp.Key,
-        //            () => kvp.Value,
-        //            BindingMode.WeakSystem
-        //        ));
-        //    }
-        //}
-
-        private static ISystem MakeConcrete<IConcrete>() where IConcrete : ISystem, new()
+        private static object MakeConcrete<IConcrete>() where IConcrete : new()
         {
             return new IConcrete();
         }

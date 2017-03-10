@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace SFuller.SharpGameLibs.Unity.Update
 {
-    public class UpdateManager : IUpdateManager
+    public sealed class UpdateManager : IUpdateManager, IInitializable, IDisposable
     {
         private enum RegistrationActionType {
             Add,
@@ -19,17 +19,13 @@ namespace SFuller.SharpGameLibs.Unity.Update
             public IUpdatable Updatable;
         }
 
-        public Type[] GetDependencies() {
-            return null;
-        }
-
-        public void Init(SystemContainer container) {
+        public void Init(IIOCProvider container) {
             _obj = new GameObject("UpdateManager");
             UpdateBehaviour behaviour = _obj.AddComponent<UpdateBehaviour>();
             behaviour.StartCoroutine(UpdateCoroutine());
         }
 
-        public void Shutdown() {
+        public void Dispose() {
             _actions.Clear();
             _items.Clear();
             GameObject.Destroy(_obj);

@@ -6,7 +6,7 @@ namespace SFuller.SharpGameLibs.Core.UI
     /// <summary>
     /// Manages transitions and history of UI screens.
     /// </summary>
-    public interface IUIScreenManager : ISystem {
+    public interface IUIScreenManager {
 
         /// <summary>
         /// Adds a screen and displays it immediatley, pushing the current

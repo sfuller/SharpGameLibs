@@ -7,21 +7,19 @@ using UnityEngine;
 
 namespace SFuller.SharpGameLibs.Unity.Timing
 {
-    public class UpdateTimerManager : ITimerManagerSystem, IUpdatable
-    {
-        public Type[] GetDependencies() {
-            return new Type[] {
-                typeof(IUpdateManager)
-            };
-        }
+    [Dependencies(new Type[] {
+        typeof(IUpdateManager)
+    })]
 
-        public void Init(SystemContainer container)
+    public sealed class UpdateTimerManager : ITimerManager, IUpdatable, IDisposable
+    {
+        public void Init(IIOCProvider container)
         {
             _updates = container.Get<IUpdateManager>();
             _updates.Register(this);
         }
 
-        public void Shutdown()
+        public void Dispose()
         {
             _updates.Unregister(this);
             _times.Clear();

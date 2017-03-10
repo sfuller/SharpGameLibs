@@ -5,16 +5,15 @@ using SFuller.SharpGameLibs.Core.ViewManagement;
 
 namespace SFuller.SharpGameLibs.Core.UI
 {
-    public class UIScreenManager : IUIScreenManager
+    [Dependencies(new Type[]
     {
-        public Type[] GetDependencies() {
-            return new Type[] {
-                typeof(IUIManager),
-                typeof(IViewManager)
-            };
-        }
+        typeof(IUIManager),
+        typeof(IViewManager)
+    })]
 
-        public void Init(SystemContainer container) {
+    public sealed class UIScreenManager : IUIScreenManager, IInitializable, IDisposable
+    {
+        public void Init(IIOCProvider container) {
             _huds = container.Get<IUIManager>();
             _viewManager = container.Get<IViewManager>();
 
@@ -33,7 +32,7 @@ namespace SFuller.SharpGameLibs.Core.UI
             SetupScreen(screen);
         }
 
-        public void Shutdown() {
+        public void Dispose() {
             if (_currentScreen != null) {
                 TeardownCurrentScreen();
                 _currentScreen.Shutdown();

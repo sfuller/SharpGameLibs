@@ -4,6 +4,6 @@ namespace SFuller.SharpGameLibs.Core.IOC
 {
     public interface IInitializable
     {
-        void Init(SystemContainer systems);
+        void Init(IIOCProvider provider);
     }
 }

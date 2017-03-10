@@ -6,7 +6,7 @@ namespace SFuller.SharpGameLibs.Core.UI
     /// <summary>
     /// Interface to a system which displays a view as the user interface.
     /// </summary>
-    public interface IUIManager : ISystem {
+    public interface IUIManager {
         void SetHUD(IView view, int layer);
     }
 }

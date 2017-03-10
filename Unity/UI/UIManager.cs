@@ -7,21 +7,20 @@ using UnityEngine;
 
 namespace SFuller.SharpGameLibs.Unity.UI
 {
-    public class UIManager : IUIManager
+    [Dependencies(new Type[]
     {
-        public Type[] GetDependencies() {
-            return new Type[] {
-                typeof(IViewManager)
-            };
-        }
+        typeof(IViewManager)
+    })]
 
-        public void Init(SystemContainer systems) {
+    public sealed class UIManager : IUIManager, IInitializable, IDisposable
+    {
+        public void Init(IIOCProvider systems) {
             _views = systems.Get<IViewManager>();
 
             _canvasView = _views.Instantiate<ICanvasView>();
         }
 
-        public void Shutdown() {
+        public void Dispose() {
             _views.Destroy(_canvasView);
         }
 

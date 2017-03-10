@@ -3,7 +3,7 @@ using SFuller.SharpGameLibs.Core.IOC;
 
 namespace SFuller.SharpGameLibs.Core.GameState {
     
-    public interface IGameStateController : ISystem {
+    public interface IGameStateController {
 
         event Action FailedToTransition;
 

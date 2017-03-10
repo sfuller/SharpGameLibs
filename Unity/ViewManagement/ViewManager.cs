@@ -11,7 +11,7 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
         public List<BindingTarget> Targets = new List<BindingTarget>();
     }
 
-    public class ViewManager : IViewManager
+    public class ViewManager : IViewManager, IInitializable
     {
         public ViewManager(ViewRegistry registry) {
             _registry = registry;
@@ -21,7 +21,7 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
             return null;
         }
 
-        public void Init(SystemContainer systems) {
+        public void Init(IIOCProvider systems) {
             _logger = systems.Get<Core.Logging.ILogger>();
             if (_logger == null) {
                 _logger = new NullLogger();
@@ -40,9 +40,6 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
                 binding.Targets.AddRange(bindingData.Targets);
                 _bindings.Add(type, binding);
             }
-        }
-        
-        public void Shutdown() {
         }
 
         public T Instantiate<T>() where T : IView {

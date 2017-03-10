@@ -6,7 +6,8 @@ using SFuller.SharpGameLibs.Core.Logging;
 
 namespace SFuller.SharpGameLibs.Core.GameState {
     
-    public class GameStateController : IGameStateController { 
+    public class GameStateController : IGameStateController, IInitializable
+    { 
 
         public event Action FailedToTransition;
 
@@ -14,7 +15,7 @@ namespace SFuller.SharpGameLibs.Core.GameState {
             return null;
         }
 
-        public void Init(SystemContainer systems) {
+        public void Init(IIOCProvider systems) {
             ILogger logger = systems.Get<ILogger>();
             if (logger == null) {
                 logger = new NullLogger();

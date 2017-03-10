@@ -19,27 +19,34 @@ namespace SFuller.SharpGameLibs.Core.IOC
         public IEnumerable<Type> Chain;
     }
 
-    public class SystemContainer
+    public class SystemContainer : IIOCProvider
     {
         private interface IRootUnit { };
 
-        public class UnitInfo {
-            public ISystem System;
-            public Type ConcreteType;
-            public BindingMode Mode;
+        private class UnitInfo {
+            public object Instance;
+            public UnitDefinition Definition;
         }
 
         private struct DependencyInfo {
             public Type[] Dependencies;
         }
 
+        public SystemContainer(IDependencyProvider dependencyProvider = null) {
+            if (dependencyProvider == null) {
+                dependencyProvider = new DependencyProvider();
+            }
+            _dependencyProvider = dependencyProvider;
+        }
+
         public void SetContext(SystemContext context) {
             _context = context;
-            GenerateUnitInfo();
         }
 
         public ContainerInitResult Init() {
             var result = new ContainerInitResult();
+
+            GenerateUnitInfo();
 
             // Generate the dependency graph
             var dependencies = new Dictionary<Type, DependencyInfo>();
@@ -66,11 +73,11 @@ namespace SFuller.SharpGameLibs.Core.IOC
 
             // Initialize systems
             for (int i = 0, ilen = unitsInOrder.Count; i < ilen; ++i) {
-                ISystem system = _units[unitsInOrder[i]].System;
-                
-                // TODO: Performance of this lookup
-                if (_ownedSystems.Contains(system)) {
-                    system.Init(this);
+                object instance = _units[unitsInOrder[i]].Instance;
+                IInitializable initializable = instance as IInitializable;
+                if (initializable != null && _ownedSystems.Contains(instance)) {
+                    // TODO: Performance of this lookup
+                    initializable.Init(this);
                 }
             }
             
@@ -82,48 +89,58 @@ namespace SFuller.SharpGameLibs.Core.IOC
         /// </summary>
         public GraphGenResult GetDependencyGraph() {
             var dependencies = new Dictionary<Type, DependencyInfo>();
-
+            GenerateUnitInfo();
             MakeDependencyInfo(_units, dependencies);
             return MakeDependencyGraph(dependencies);
         }
 
-        public T Get<T>() where T : class, IInitializable {
+        public T Get<T>() {
             UnitInfo unit;
             if (!_units.TryGetValue(typeof(T), out unit)) {
-                return null;
+                return default(T);
             }
-            if (unit.Mode == BindingMode.Factory) {
-                T instance = (T)Activator.CreateInstance(unit.ConcreteType);
-                instance.Init(this);
-                return instance;
+            if (unit.Definition.Mode == BindingMode.Factory) {
+                object instance = unit.Definition.Factory();
+                IInitializable initializable = instance as IInitializable;
+                if (initializable != null) {
+                    initializable.Init(this);
+                }
+                return (T)instance;
             }
-            return (T)unit.System;
+            return (T)unit.Instance;
         }
 
         public void Shutdown() {
             for (int i = 0, ilen = _ownedSystems.Count; i < ilen; ++i) {
-                ISystem system = _ownedSystems[i];
-                system.Shutdown();
+                object system = _ownedSystems[i];
+                IDisposable disposable = system as IDisposable;
+                if (disposable != null) {
+                    disposable.Dispose();
+                }
             }
         }
 
         public void RegisterToContextAsWeak(SystemContext context) {
             foreach (var pair in _units) {
                 UnitInfo unit = pair.Value;
-                if (unit.Mode == BindingMode.Factory) {
-                    context.AddDefinition(
-                        new UnitDefinition(pair.Key, unit.ConcreteType)
-                    );
+                UnitDefinition oldDef = unit.Definition;
+                BindingMode newMode = oldDef.Mode;
+                Func<object> newFactory = oldDef.Factory;
+
+                if (oldDef.Mode == BindingMode.System) {
+                    newMode = BindingMode.WeakSystem;
+                    object instance = unit.Instance;
+                    newFactory = () => instance;
                 }
-                else {
-                    context.AddDefinition(
-                        new UnitDefinition(
-                            pair.Key,
-                            () => unit.System,
-                            BindingMode.WeakSystem
-                        )
-                    );
-                }
+
+                context.AddDefinition(
+                    new UnitDefinition(
+                        oldDef.InterfaceType,
+                        oldDef.ConcreteType,
+                        newFactory,
+                        newMode
+                    )
+                );
             }
         }
 
@@ -131,22 +148,18 @@ namespace SFuller.SharpGameLibs.Core.IOC
             _units.Clear();
             _ownedSystems.Clear();
 
-            IEnumerator<UnitDefinition> it = _context.Definitions.GetEnumerator();
-            while (it.MoveNext()) {
-                var current = it.Current;
-
+            foreach(UnitDefinition def in _context.Definitions) {
                 var unit = new UnitInfo();
-                unit.Mode = current.Mode;
-                unit.ConcreteType = current.ConcreteType;
+                unit.Definition = def;
 
-                if (current.Mode != BindingMode.Factory) {
-                    unit.System = current.Creator();
-                    if (current.Mode != BindingMode.WeakSystem) {
-                        _ownedSystems.Add(unit.System);
+                if (def.Mode != BindingMode.Factory) {
+                    unit.Instance = def.Factory();
+                    if (def.Mode != BindingMode.WeakSystem) {
+                        _ownedSystems.Add(unit.Instance);
                     }
                 }
 
-                _units.Add(current.Type, unit);
+                _units.Add(def.InterfaceType, unit);
             }
         }
 
@@ -155,20 +168,11 @@ namespace SFuller.SharpGameLibs.Core.IOC
             Dictionary<Type, DependencyInfo> dependencyInfo
         ) {
             foreach (var pair in units) {
-                Type[] dependencies = null;
-
                 UnitInfo unit = pair.Value;
-                if (unit.Mode == BindingMode.Factory) {
-                    object[] attributes = unit.ConcreteType.GetCustomAttributes(typeof(DependenciesAttribute), true);
-                    if (attributes.Length > 0) {
-                        DependenciesAttribute attribute = (DependenciesAttribute)attributes[0];
-                        dependencies = attribute.Dependencies;
-                    }
-                }
-                else {
-                    dependencies = unit.System.GetDependencies();
-                }
 
+                Type concreteType = unit.Instance == null ? 
+                    unit.Definition.ConcreteType : unit.Instance.GetType();
+                Type[] dependencies = _dependencyProvider.Get(concreteType);
                 if (dependencies == null || dependencies.Length < 1) {
                     dependencies = _rootDependencies;
                 }
@@ -301,10 +305,11 @@ namespace SFuller.SharpGameLibs.Core.IOC
             systemsInOrder.AddRange(units);
         }
 
+        private readonly IDependencyProvider _dependencyProvider;
         private SystemContext _context;
 
         private readonly Dictionary<Type, UnitInfo> _units = new Dictionary<Type, UnitInfo>();
-        private List<ISystem> _ownedSystems = new List<ISystem>();
+        private readonly List<object> _ownedSystems = new List<object>();
         private readonly Type[] _rootDependencies = new Type[] { typeof(IRootUnit) };
     }
 
