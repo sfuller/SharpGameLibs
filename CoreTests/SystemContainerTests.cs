@@ -136,5 +136,42 @@ namespace SFuller.SharpGameLibs.CoreTests
             Assert.IsNotNull(container2.Get<ITestSystem1>());
         }
 
+        public enum TestEnum
+        {
+            Option1,
+            Option2,
+            Option3
+        }
+
+        [Test]
+        public void TestEnumSystemBinding()
+        {
+            _context.Register<TestEnum>(TestEnum.Option2);
+            Assert.IsTrue(_container.Init().Status == ContainerInitStatus.Ok);
+            Assert.AreEqual(TestEnum.Option2, _container.Get<TestEnum>());
+        }
+
+        [Test]
+        public void TestEnumFactoryBinding()
+        {
+            _context.AddDefinition(new UnitDefinition(typeof(TestEnum), typeof(TestEnum), () => TestEnum.Option2, BindingMode.Factory));
+            Assert.IsTrue(_container.Init().Status == ContainerInitStatus.Ok);
+            Assert.AreEqual(TestEnum.Option2, _container.Get<TestEnum>());
+        }
+
+        public interface IGenericSystem<T> {}
+
+        [Test]
+        public void TestMultipleGenericBindings()
+        {
+            IGenericSystem<int> system1 = Substitute.For<IGenericSystem<int>>();
+            IGenericSystem<float> system2 = Substitute.For<IGenericSystem<float>>();
+            _context.Register<IGenericSystem<int>>(system1);
+            _context.Register<IGenericSystem<float>>(system2);
+            Assert.IsTrue(_container.Init().Status == ContainerInitStatus.Ok);
+            Assert.AreEqual(system1, _container.Get<IGenericSystem<int>>());
+            Assert.AreEqual(system2, _container.Get<IGenericSystem<float>>());
+        }
+
     }
 }

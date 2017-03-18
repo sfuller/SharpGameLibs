@@ -2,7 +2,7 @@
 
 namespace SFuller.SharpGameLibs.Core.IOC
 {
-    class DependencyProvider : IDependencyProvider
+    public class DependencyProvider : IDependencyProvider
     {
         public Type[] Get(Type type) {
             object[] attributes = type.GetCustomAttributes(typeof(DependenciesAttribute), true);
