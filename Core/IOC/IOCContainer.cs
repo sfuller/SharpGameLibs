@@ -11,15 +11,15 @@ namespace SFuller.SharpGameLibs.Core.IOC
 
     public struct ContainerInitResult {
         public ContainerInitStatus Status;
-        public IEnumerable<Type> Missing;
-        public IEnumerable<CircularDependency> Circular;
+        public IEnumerable<UnitDefinition> Missing;
+        public IEnumerable<CircularDependency<UnitDefinition>> Circular;
     }
 
-    public struct CircularDependency {
-        public IEnumerable<Type> Chain;
+    public struct CircularDependency<T> {
+        public IEnumerable<T> Chain;
     }
 
-    public class SystemContainer : IIOCProvider
+    public class IOCContainer : IIOCProvider
     {
         private interface IRootUnit { };
 
@@ -28,18 +28,20 @@ namespace SFuller.SharpGameLibs.Core.IOC
             public UnitDefinition Definition;
         }
 
-        private struct DependencyInfo {
-            public Type[] Dependencies;
+        private struct DependencyInfo<T> {
+            public T[] Dependencies;
         }
 
-        public SystemContainer(IDependencyProvider dependencyProvider = null) {
+        public IOCContainer(IDependencyProvider dependencyProvider = null) {
+            _rootDependencies = new UnitDefinition[] { _rootDefinition };
+
             if (dependencyProvider == null) {
                 dependencyProvider = new DependencyProvider();
             }
             _dependencyProvider = dependencyProvider;
         }
 
-        public void SetContext(SystemContext context) {
+        public void SetContext(Context context) {
             _context = context;
         }
 
@@ -49,9 +51,9 @@ namespace SFuller.SharpGameLibs.Core.IOC
             GenerateUnitInfo();
 
             // Generate the dependency graph
-            var dependencies = new Dictionary<Type, DependencyInfo>();
+            var dependencies = new Dictionary<UnitDefinition, DependencyInfo<UnitDefinition>>();
             MakeDependencyInfo(_units, dependencies);
-            GraphGenResult graphResult = MakeDependencyGraph(dependencies);
+            GraphGenResult<UnitDefinition> graphResult = MakeDependencyGraph<UnitDefinition>(dependencies, _rootDefinition);
             if (graphResult.MissingDependencies.Count > 0) {
                 result.Missing = graphResult.MissingDependencies;
                 result.Status = ContainerInitStatus.MissingDependencies;
@@ -59,7 +61,7 @@ namespace SFuller.SharpGameLibs.Core.IOC
             }
 
             // Check for circular dependencies
-            var unitsWithCircularDependencies = new List<CircularDependency>();
+            var unitsWithCircularDependencies = new List<CircularDependency<UnitDefinition>>();
             DetectCircularDependencies(graphResult.Graph, unitsWithCircularDependencies);
             if (unitsWithCircularDependencies.Count > 0) {
                 result.Status = ContainerInitStatus.CircularDependency;
@@ -68,15 +70,17 @@ namespace SFuller.SharpGameLibs.Core.IOC
             }
 
             // Resolve dependencies
-            var unitsInOrder = new List<Type>();
+            var unitsInOrder = new List<UnitDefinition>();
             ResolveDependencyGraph(graphResult.Root, unitsInOrder);
 
             // Initialize systems
             for (int i = 0, ilen = unitsInOrder.Count; i < ilen; ++i) {
-                object instance = _units[unitsInOrder[i]].Instance;
+
+                object instance = _unitMap[unitsInOrder[i].InterfaceTypes[0]].Instance;
                 IInitializable initializable = instance as IInitializable;
+                // TODO: Performance of this lookup, since we have the unit definition, couldn't we
+                // just check if it's a weak system or not?
                 if (initializable != null && _ownedSystems.Contains(instance)) {
-                    // TODO: Performance of this lookup
                     initializable.Init(this);
                 }
             }
@@ -87,16 +91,16 @@ namespace SFuller.SharpGameLibs.Core.IOC
         /// <summary>
         /// Creates a dependency graph from all registered units in the context.
         /// </summary>
-        public GraphGenResult GetDependencyGraph() {
-            var dependencies = new Dictionary<Type, DependencyInfo>();
+        public GraphGenResult<UnitDefinition> GetDependencyGraph() {
+            var dependencies = new Dictionary<UnitDefinition, DependencyInfo<UnitDefinition>>();
             GenerateUnitInfo();
             MakeDependencyInfo(_units, dependencies);
-            return MakeDependencyGraph(dependencies);
+            return MakeDependencyGraph(dependencies, _rootDefinition);
         }
 
         public T Get<T>() {
             UnitInfo unit;
-            if (!_units.TryGetValue(typeof(T), out unit)) {
+            if (!_unitMap.TryGetValue(typeof(T), out unit)) {
                 return default(T);
             }
             if (unit.Definition.Mode == BindingMode.Factory) {
@@ -120,8 +124,8 @@ namespace SFuller.SharpGameLibs.Core.IOC
             }
         }
 
-        public void RegisterToContextAsWeak(SystemContext context) {
-            foreach (var pair in _units) {
+        public void RegisterToContextAsWeak(Context context) {
+            foreach (var pair in _unitMap) {
                 UnitInfo unit = pair.Value;
                 UnitDefinition oldDef = unit.Definition;
                 BindingMode newMode = oldDef.Mode;
@@ -135,7 +139,7 @@ namespace SFuller.SharpGameLibs.Core.IOC
 
                 context.AddDefinition(
                     new UnitDefinition(
-                        oldDef.InterfaceType,
+                        oldDef.InterfaceTypes,
                         oldDef.ConcreteType,
                         newFactory,
                         newMode
@@ -146,6 +150,7 @@ namespace SFuller.SharpGameLibs.Core.IOC
 
         private void GenerateUnitInfo() {
             _units.Clear();
+            _unitMap.Clear();
             _ownedSystems.Clear();
 
             foreach(UnitDefinition def in _context.Definitions) {
@@ -159,53 +164,76 @@ namespace SFuller.SharpGameLibs.Core.IOC
                     }
                 }
 
-                _units.Add(def.InterfaceType, unit);
+                _units.Add(unit);
+
+                Type[] interfaceTypes = def.InterfaceTypes;
+                for (int i = 0, ilen = interfaceTypes.Length; i < ilen; ++i) {
+                    Type interfaceType = interfaceTypes[i];
+                    _unitMap[interfaceType] = unit;
+                }
             }
         }
 
         private void MakeDependencyInfo(
-            Dictionary<Type, UnitInfo> units,
-            Dictionary<Type, DependencyInfo> dependencyInfo
+            IEnumerable<UnitInfo> units,
+            Dictionary<UnitDefinition, DependencyInfo<UnitDefinition>> dependencyInfo
         ) {
-            foreach (var pair in units) {
-                UnitInfo unit = pair.Value;
-
+            foreach (UnitInfo unit in units) {
                 Type concreteType = unit.Instance == null ? 
                     unit.Definition.ConcreteType : unit.Instance.GetType();
                 Type[] dependencies = _dependencyProvider.Get(concreteType);
+                UnitDefinition[] dependencyUnits;
                 if (dependencies == null || dependencies.Length < 1) {
-                    dependencies = _rootDependencies;
+                    dependencyUnits = _rootDependencies;
+                }
+                else {
+                    var unitDefs = new List<UnitDefinition>();
+                    for (int i = 0, ilen = dependencies.Length; i < ilen; ++i) {
+                        UnitInfo dependencyUnitInfo;
+                        UnitDefinition dependencyUnit;
+                        if (_unitMap.TryGetValue(dependencies[i], out dependencyUnitInfo)) {
+                            dependencyUnit = dependencyUnitInfo.Definition;
+                        }
+                        else {
+                            dependencyUnit = new UnitDefinition(null, null, null, BindingMode.System);
+                        }
+                        if (!unitDefs.Contains(dependencyUnit)) {
+                            unitDefs.Add(dependencyUnit);
+                        }
+                    }
+                    dependencyUnits = unitDefs.ToArray();
                 }
 
-                var info = new DependencyInfo();
-                info.Dependencies = dependencies;
-                dependencyInfo[pair.Key] = info;
+                var info = new DependencyInfo<UnitDefinition>();
+                info.Dependencies = dependencyUnits;
+                dependencyInfo[unit.Definition] = info;
             }
         }
 
-        private GraphGenResult MakeDependencyGraph(
-            Dictionary<Type, DependencyInfo> units  
+        private GraphGenResult<T> MakeDependencyGraph<T>(
+            Dictionary<T, DependencyInfo<T>> units,
+            T rootData
         ) {
-            var result = new GraphGenResult();
-            var nodes = new Dictionary<Type, GraphNode>();
-            var root = new GraphNode();
-            var missingDependencies = new List<Type>();
+            var result = new GraphGenResult<T>();
+            var nodes = new Dictionary<T, GraphNode<T>>();
+            var root = new GraphNode<T>();
+            var missingDependencies = new List<T>();
 
-            nodes[typeof(IRootUnit)] = root;
+            nodes[rootData] = root;
             result.Root = root;
             result.Graph = nodes;
             result.MissingDependencies = missingDependencies;
 
             foreach (var pair in units) {
-                var node = new GraphNode();
-                node.UnitType = pair.Key;
+                var node = new GraphNode<T>();
+                node.Data = pair.Key;
                 nodes[pair.Key] = node;
             }
 
             foreach (var pair in units) {
-                GraphNode dependentNode = nodes[pair.Key];
-                foreach (Type dependency in pair.Value.Dependencies) {
-                    GraphNode dependencyNode;
+                GraphNode<T> dependentNode = nodes[pair.Key];
+                foreach (T dependency in pair.Value.Dependencies) {
+                    GraphNode<T> dependencyNode;
                     if (nodes.TryGetValue(dependency, out dependencyNode)) {
                         dependencyNode.Dependents.Add(dependentNode);
                     }
@@ -218,29 +246,29 @@ namespace SFuller.SharpGameLibs.Core.IOC
             return result;
         }
 
-        private void DetectCircularDependencies(
-            Dictionary<Type, GraphNode> graph,
-            List<CircularDependency> circularDependencies
+        private void DetectCircularDependencies<T>(
+            Dictionary<T, GraphNode<T>> graph,
+            List<CircularDependency<T>> circularDependencies
         ) {
-            var stack = new Stack<GraphNode>();
-            var visitedNodes = new List<GraphNode>();
+            var stack = new Stack<GraphNode<T>>();
+            var visitedNodes = new List<GraphNode<T>>();
 
             foreach (var pair in graph) {
-                GraphNode searchNode = pair.Value;
+                GraphNode<T> searchNode = pair.Value;
                 stack.Push(searchNode);
                 visitedNodes.Clear();
 
                 while (stack.Count > 0) {
-                    GraphNode node = stack.Pop();
+                    GraphNode<T> node = stack.Pop();
 
-                    var unvisitedNodes = new List<GraphNode>();
+                    var unvisitedNodes = new List<GraphNode<T>>();
 
-                    foreach (GraphNode child in node.Dependents) {
+                    foreach (GraphNode<T> child in node.Dependents) {
                         if (child == searchNode) {
-                            var circular = new CircularDependency();
-                            var chain = new List<Type>();
+                            var circular = new CircularDependency<T>();
+                            var chain = new List<T>();
                             while(stack.Count > 0) {
-                                chain.Add(stack.Pop().UnitType);
+                                chain.Add(stack.Pop().Data);
                             }
                             chain.Reverse();
                             circular.Chain = chain;
@@ -254,7 +282,7 @@ namespace SFuller.SharpGameLibs.Core.IOC
 
                     if (unvisitedNodes.Count > 0) {
                         stack.Push(node);
-                        foreach (GraphNode child in unvisitedNodes) {
+                        foreach (GraphNode<T> child in unvisitedNodes) {
                             stack.Push(child);
                         }
                     }
@@ -266,35 +294,35 @@ namespace SFuller.SharpGameLibs.Core.IOC
 
         }
 
-        private void ResolveDependencyGraph(
-            GraphNode root,
-            List<Type> systemsInOrder
+        private void ResolveDependencyGraph<T>(
+            GraphNode<T> root,
+            List<T> unitsInOrder
         ) {
-            var units = new List<Type>();
+            var units = new List<T>();
 
-            Stack<GraphNode> nodeStack = new Stack<GraphNode>();
+            Stack<GraphNode<T>> nodeStack = new Stack<GraphNode<T>>();
             nodeStack.Push(root);
 
             while (nodeStack.Count > 0)
             {
-                GraphNode currentNode = nodeStack.Pop();
+                GraphNode<T> currentNode = nodeStack.Pop();
 
-                List<GraphNode> unresolvedChildren = new List<GraphNode>();
+                List<GraphNode<T>> unresolvedChildren = new List<GraphNode<T>>();
 
-                foreach (GraphNode child in currentNode.Dependents) {
-                    if (!units.Contains(child.UnitType)) {
+                foreach (GraphNode<T> child in currentNode.Dependents) {
+                    if (!units.Contains(child.Data)) {
                         unresolvedChildren.Add(child);
                     }
                 }
 
                 if (unresolvedChildren.Count > 0) {
                     nodeStack.Push(currentNode);
-                    foreach (GraphNode child in unresolvedChildren) {
+                    foreach (GraphNode<T> child in unresolvedChildren) {
                         nodeStack.Push(child);
                     }
                 }
-                else if (!units.Contains(currentNode.UnitType)) {
-                    units.Add(currentNode.UnitType);
+                else if (!units.Contains(currentNode.Data)) {
+                    units.Add(currentNode.Data);
                 }
             }
 
@@ -302,15 +330,19 @@ namespace SFuller.SharpGameLibs.Core.IOC
             units.RemoveAt(units.Count - 1);
 
             units.Reverse();
-            systemsInOrder.AddRange(units);
+            unitsInOrder.AddRange(units);
         }
 
         private readonly IDependencyProvider _dependencyProvider;
-        private SystemContext _context;
+        private Context _context;
 
-        private readonly Dictionary<Type, UnitInfo> _units = new Dictionary<Type, UnitInfo>();
+        private readonly Dictionary<Type, UnitInfo> _unitMap = new Dictionary<Type, UnitInfo>();
+        private readonly List<UnitInfo> _units = new List<UnitInfo>();
         private readonly List<object> _ownedSystems = new List<object>();
-        private readonly Type[] _rootDependencies = new Type[] { typeof(IRootUnit) };
+        private readonly UnitDefinition[] _rootDependencies;
+        private readonly UnitDefinition _rootDefinition = new UnitDefinition(
+            new Type[] { typeof(IRootUnit) }, null, null, BindingMode.System
+        );
     }
 
 }

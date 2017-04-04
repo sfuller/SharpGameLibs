@@ -7,8 +7,8 @@ namespace SFuller.SharpGameLibs.Core.GameState {
 
         event Action ReadyToTransitionIn;
 
-        SystemContext GetSystemContext();
-        void Enter(SystemContainer systems);
+        Context GetSystemContext();
+        void Enter(IOCContainer systems);
         void Exit();
 
     }

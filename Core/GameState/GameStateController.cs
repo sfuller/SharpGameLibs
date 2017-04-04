@@ -56,8 +56,8 @@ namespace SFuller.SharpGameLibs.Core.GameState {
             }
 
             // Setup new systems
-            _systems = new SystemContainer();
-            SystemContext context = _nextState.GetSystemContext();
+            _systems = new IOCContainer();
+            Context context = _nextState.GetSystemContext();
             FrameworkSystems.RegisterToContextAsWeak(context);
             _systems.SetContext(context);
             ContainerInitResult result = _systems.Init();
@@ -96,13 +96,13 @@ namespace SFuller.SharpGameLibs.Core.GameState {
             builder.Append("Failed to init IOC container for game state ");
             builder.Append(_nextState.GetType().Name);
 
-            Type[] missing = result.Missing?.ToArray();
-            CircularDependency[] chain = result.Circular?.ToArray();
+            UnitDefinition[] missing = result.Missing?.ToArray();
+            CircularDependency<UnitDefinition>[] chain = result.Circular?.ToArray();
 
             if (missing?.Length > 0){
                 builder.Append("\nMissing dependencies: ");
                 for (int i = 0, ilen = missing.Length; i < ilen; ++i) {
-                    builder.Append(missing[i].Name);
+                    builder.Append(missing[i]);
                     if (i < ilen - 1) {
                         builder.Append(", ");
                     }
@@ -112,9 +112,9 @@ namespace SFuller.SharpGameLibs.Core.GameState {
             if (chain?.Length > 0){
                 builder.Append("\nCircular dependency chains: ");
                 for (int i = 0, ilen = chain.Length; i < ilen; ++i) {
-                    Type[] types = chain[i].Chain.ToArray();
-                    for (int j = 0, jlen = types.Length; j < jlen; ++j) {
-                        builder.Append(types[j].Name);
+                    UnitDefinition[] unitDefinitions = chain[i].Chain.ToArray();
+                    for (int j = 0, jlen = unitDefinitions.Length; j < jlen; ++j) {
+                        builder.Append(unitDefinitions[j]);
                         if (j < jlen - 1) {
                             builder.Append(" -> ");
                         }
@@ -125,11 +125,11 @@ namespace SFuller.SharpGameLibs.Core.GameState {
             _logger.LogError(builder.ToString());
         }
 
-        public SystemContainer FrameworkSystems;
+        public IOCContainer FrameworkSystems;
 
         private ILogger _logger;
 
-        private SystemContainer _systems;
+        private IOCContainer _systems;
         private IGameState _currentState;
         private IGameState _nextState;
         private ITransitionController _currentTransitionController;
