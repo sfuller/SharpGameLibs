@@ -15,6 +15,79 @@ namespace SFuller.SharpGameLibs.Core.IOC
             _definitions.Add(definition);
         }
 
+        public void Register<InterfaceT, ConcreteT>()
+            where ConcreteT : InterfaceT, new()
+        {
+            _definitions.Add(
+                new UnitDefinition(
+                    new Type[] { typeof(InterfaceT) },
+                    null,
+                    MakeConcrete<ConcreteT>,
+                    BindingMode.System
+                )
+            );
+        }
+
+        public void Register<InterfaceT>(Func<InterfaceT> creatorFunc)
+        {
+            _definitions.Add(
+                new UnitDefinition(
+                    new Type[] { typeof(InterfaceT) },
+                    null,
+                    () => creatorFunc(),
+                    BindingMode.System
+                )
+            );
+        }
+
+        public void Register<InterfaceT>(InterfaceT instance)
+        {
+            Register(() => instance);
+        }
+
+        public void RegisterWeak<InterfaceT>(Func<InterfaceT> creatorFunc)
+        {
+            _definitions.Add(
+                new UnitDefinition(
+                    new Type[] { typeof(InterfaceT) },
+                    null,
+                    () => creatorFunc(),
+                    BindingMode.WeakSystem
+                )
+            );
+        }
+
+        public void RegisterFactory<InterfaceT, ConcreteT>()
+            where ConcreteT : InterfaceT, new()
+        {
+            _definitions.Add(
+                new UnitDefinition(
+                    new Type[] { typeof(InterfaceT) },
+                    typeof(ConcreteT),
+                    MakeConcrete<ConcreteT>,
+                    BindingMode.Factory
+                )
+            );
+        }
+
+        public void RegisterFactory<InterfaceT, ConcreteT>(Func<ConcreteT> creatorFunc)
+            where ConcreteT : InterfaceT
+        {
+            _definitions.Add(
+                new UnitDefinition(
+                    new Type[] { typeof(InterfaceT) },
+                    typeof(ConcreteT),
+                    () => creatorFunc(),
+                    BindingMode.Factory
+                )
+            );
+        }
+
+        private static object MakeConcrete<IConcrete>() where IConcrete : new()
+        {
+            return new IConcrete();
+        }
+
         private readonly List<UnitDefinition> _definitions = new List<UnitDefinition>();
     }
 

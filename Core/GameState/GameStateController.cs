@@ -95,33 +95,8 @@ namespace SFuller.SharpGameLibs.Core.GameState {
             var builder = new StringBuilder();
             builder.Append("Failed to init IOC container for game state ");
             builder.Append(_nextState.GetType().Name);
-
-            UnitDefinition[] missing = result.Missing?.ToArray();
-            CircularDependency<UnitDefinition>[] chain = result.Circular?.ToArray();
-
-            if (missing?.Length > 0){
-                builder.Append("\nMissing dependencies: ");
-                for (int i = 0, ilen = missing.Length; i < ilen; ++i) {
-                    builder.Append(missing[i]);
-                    if (i < ilen - 1) {
-                        builder.Append(", ");
-                    }
-                }
-            }
-            
-            if (chain?.Length > 0){
-                builder.Append("\nCircular dependency chains: ");
-                for (int i = 0, ilen = chain.Length; i < ilen; ++i) {
-                    UnitDefinition[] unitDefinitions = chain[i].Chain.ToArray();
-                    for (int j = 0, jlen = unitDefinitions.Length; j < jlen; ++j) {
-                        builder.Append(unitDefinitions[j]);
-                        if (j < jlen - 1) {
-                            builder.Append(" -> ");
-                        }
-                    }
-                }
-            }
-
+            builder.Append(".\n");
+            result.AppendMissingAndCircularDependencies(builder);
             _logger.LogError(builder.ToString());
         }
 

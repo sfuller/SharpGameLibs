@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 
 namespace SFuller.SharpGameLibs.Core.IOC
 {
@@ -13,6 +15,44 @@ namespace SFuller.SharpGameLibs.Core.IOC
         public ContainerInitStatus Status;
         public IEnumerable<UnitDefinition> Missing;
         public IEnumerable<CircularDependency<UnitDefinition>> Circular;
+
+        public void AppendMissingAndCircularDependencies(StringBuilder builder)
+        {
+            UnitDefinition[] missing = Missing?.ToArray();
+            CircularDependency<UnitDefinition>[] chain = Circular?.ToArray();
+
+            bool hasMissing = missing?.Length > 0;
+            bool hasChain = chain?.Length > 0;
+
+            if (hasMissing) {
+                builder.Append("Missing dependencies: ");
+                for (int i = 0, ilen = missing.Length; i < ilen; ++i) {
+                    builder.Append(missing[i]);
+                    if (i < ilen - 1) {
+                        builder.Append(", ");
+                    }
+                }
+            }
+
+            if (hasChain) {
+                if (hasMissing) {
+                    builder.Append("\n");
+                }
+
+                builder.Append("Circular dependency chains: ");
+                for (int i = 0, ilen = chain.Length; i < ilen; ++i) {
+                    UnitDefinition[] unitDefinitions = chain[i].Chain.ToArray();
+                    for (int j = 0, jlen = unitDefinitions.Length; j < jlen; ++j) {
+                        builder.Append(unitDefinitions[j]);
+                        if (j < jlen - 1) {
+                            builder.Append(" -> ");
+                        }
+                    }
+                }
+
+            }
+
+        }
     }
 
     public struct CircularDependency<T> {
