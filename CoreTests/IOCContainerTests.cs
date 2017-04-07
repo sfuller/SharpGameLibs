@@ -9,10 +9,10 @@ namespace SFuller.SharpGameLibs.CoreTests
     [TestFixture]
     public class IOCContainerTests
     {
-        public interface ITestSystem1 {}
-        public interface ITestSystem2 {}
-        public interface ITestSystem3 {}
-        public interface ITestSystem4 {}
+        public interface ITestSystem1 { }
+        public interface ITestSystem2 { }
+        public interface ITestSystem3 { }
+        public interface ITestSystem4 { }
 
         private ITestSystem1 _system1;
         private ITestSystem2 _system2;
@@ -181,7 +181,7 @@ namespace SFuller.SharpGameLibs.CoreTests
             Assert.AreEqual(TestEnum.Option2, _container.Get<TestEnum>());
         }
 
-        public interface IGenericSystem<T> {}
+        public interface IGenericSystem<T> { }
 
         [Test]
         public void TestMultipleGenericBindings()
@@ -232,6 +232,44 @@ namespace SFuller.SharpGameLibs.CoreTests
             Assert.IsTrue(_container.Init().Status == ContainerInitStatus.Ok);
             ((IInitializable)unit1).Received(1).Init(Arg.Any<IIOCProvider>());
             ((IInitializable)unit3).Received(1).Init(Arg.Any<IIOCProvider>());
+        }
+
+        [Test]
+        public void TestWeakSystemsHaveNoDependencies()
+        {
+            _depends.Get(_system2.GetType()).Returns(new Type[] { typeof(ITestSystem1) });
+            _depends.Get(_system3.GetType()).Returns(new Type[] { typeof(ITestSystem2) });
+
+            var context = new Context();
+            context.RegisterWeak(() => _system2);
+            context.Register(_system3);
+            _container.SetContext(context);
+            Assert.IsTrue(_container.Init().Status == ContainerInitStatus.Ok);
+        }
+
+        public interface ISystemWithMethod {
+            void CallMe();
+        }
+
+        [Test]
+        public void TestGettingWeakSystemReturnsCorrectInstance()
+        {
+            var unit1 = Substitute.For<ISystemWithMethod>();
+
+            var context = new Context();
+            context.Register<ISystemWithMethod>(unit1);
+            _container.SetContext(context);
+            Assert.IsTrue(_container.Init().Status == ContainerInitStatus.Ok);
+            var subContainer = new IOCContainer();
+            var subContext = new Context();
+            var unit1FromContainer = _container.Get<ISystemWithMethod>();
+            unit1FromContainer.CallMe();
+            subContext.RegisterWeak<ISystemWithMethod>(() => unit1FromContainer);
+            subContainer.SetContext(subContext);
+            Assert.IsTrue(subContainer.Init().Status == ContainerInitStatus.Ok);
+            var unit1FromSubContainer = subContainer.Get<ISystemWithMethod>();
+            unit1FromSubContainer.CallMe();
+            unit1.Received(2).CallMe();
         }
 
     }

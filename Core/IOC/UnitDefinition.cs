@@ -19,7 +19,7 @@ namespace SFuller.SharpGameLibs.Core.IOC
         }
 
         public override string ToString() {
-            if (InterfaceTypes.Length < 1) {
+            if (InterfaceTypes == null || InterfaceTypes.Length < 1) {
                 return "[]";
             }
 

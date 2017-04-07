@@ -219,10 +219,15 @@ namespace SFuller.SharpGameLibs.Core.IOC
             Dictionary<UnitDefinition, DependencyInfo<UnitDefinition>> dependencyInfo
         ) {
             foreach (UnitInfo unit in units) {
-                Type concreteType = unit.Instance == null ? 
-                    unit.Definition.ConcreteType : unit.Instance.GetType();
-                Type[] dependencies = _dependencyProvider.Get(concreteType);
+                Type[] dependencies = null;
                 UnitDefinition[] dependencyUnits;
+
+                if (unit.Definition.Mode != BindingMode.WeakSystem) {
+                    Type concreteType = unit.Instance == null ?
+                        unit.Definition.ConcreteType : unit.Instance.GetType();
+                    dependencies = _dependencyProvider.Get(concreteType);
+                }
+
                 if (dependencies == null || dependencies.Length < 1) {
                     dependencyUnits = _rootDependencies;
                 }
@@ -235,7 +240,7 @@ namespace SFuller.SharpGameLibs.Core.IOC
                             dependencyUnit = dependencyUnitInfo.Definition;
                         }
                         else {
-                            dependencyUnit = new UnitDefinition(null, null, null, BindingMode.System);
+                            dependencyUnit = new UnitDefinition(new Type[] { dependencies[i] } , null, null, BindingMode.System);
                         }
                         if (!unitDefs.Contains(dependencyUnit)) {
                             unitDefs.Add(dependencyUnit);
