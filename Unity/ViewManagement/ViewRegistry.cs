@@ -4,10 +4,18 @@ using UnityEngine;
 
 namespace SFuller.SharpGameLibs.Unity.ViewManagement
 {
+    public enum TargetType {
+        PreloadedPrefab,
+        Resource
+        // TODO: Support asset bundles
+    }
+
     [Serializable]
     public class BindingTarget {
         public int Tag;
+        public TargetType Type;
         public GameObject Prefab;
+        public string ResourcePath;
     }
 
     [Serializable]

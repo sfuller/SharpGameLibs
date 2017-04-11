@@ -5,6 +5,7 @@ using System.Reflection;
 using SFuller.SharpGameLibs.Core.ViewManagement;
 using UnityEditor;
 using UnityEngine;
+using System.IO;
 
 namespace SFuller.SharpGameLibs.Unity.ViewManagement {
 
@@ -36,6 +37,7 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement {
 
         private class TargetView {
             public int TagIndex;
+            public GameObject SelectedObject;
             public BindingTarget Target;
         }
 
@@ -173,16 +175,46 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement {
                     target.Tag = tagData.Values[selectedIndex];
                 }
             }
-            
+
             // Prefab field
-            target.Prefab = EditorGUILayout.ObjectField(
-                target.Prefab, typeof(GameObject),
-                allowSceneObjects: false
-            ) as GameObject;
+            DrawPrefabField(view);
 
             // Remove button            
             if (GUILayout.Button("-", GUILayout.MaxWidth(32))) {
                 _targetToRemove = view;
+            }
+
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawPrefabField(TargetView view)
+        {
+            BindingTarget target = view.Target;
+
+            EditorGUILayout.BeginHorizontal();
+            TargetType previousTargetType = target.Type;
+            target.Type = (TargetType)EditorGUILayout.EnumPopup(previousTargetType);
+
+            GameObject selectedObject = EditorGUILayout.ObjectField(
+                view.SelectedObject, typeof(GameObject),
+                allowSceneObjects: false
+            ) as GameObject;
+
+            if (selectedObject != view.SelectedObject ||
+                target.Type != previousTargetType)
+            {
+                view.SelectedObject = selectedObject;
+
+                switch(target.Type)
+                {
+                    case TargetType.PreloadedPrefab:
+                        target.Prefab = selectedObject;
+                        break;
+                    case TargetType.Resource:
+                        target.Prefab = null;
+                        target.ResourcePath = ResourcePathFromAssetPath(AssetDatabase.GetAssetPath(selectedObject));
+                        break;
+                }
             }
 
             EditorGUILayout.EndHorizontal();
@@ -211,16 +243,87 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement {
                     if (tagData != null) {
                         tagIndex = tagData.Values.IndexOf(target.Tag);
                     }
-                    var targetView = new TargetView() {
-                        Target = target,
-                        TagIndex = tagIndex
-                    };
+                    var targetView = CreateTargetView(target, tagIndex);
                     bindingView.TargetViews.Add(targetView);
                 }
                 _editorViews.Add(bindingView);
             }
             _view = view;
         }
+
+        private TargetView CreateTargetView(BindingTarget target, int tagIndex)
+        {
+            var view = new TargetView() {
+                Target = target,
+                TagIndex = tagIndex,
+            };
+            if (target.Type == TargetType.Resource) {
+                view.SelectedObject = AssetDatabase.LoadAssetAtPath<GameObject>(AssetPathFromResourcePath(target.ResourcePath));
+            }
+            else {
+                view.SelectedObject = target.Prefab;
+            }
+            return view;
+        }
+
+        private string[] GetResourceRoots()
+        {
+            var stack = new Stack<string>();
+            var resourceDirs = new List<string>();
+            stack.Push(".");
+
+            while (stack.Count > 0){
+                string dir = stack.Pop();
+                string[] subdirectories = Directory.GetDirectories(dir);
+
+                foreach (string subdir in subdirectories) {
+                    string[] parts = subdir.Split(Path.DirectorySeparatorChar);
+                    string dirname = parts[parts.Length - 1];
+                    if (dirname.ToLower() == "resources"){
+                        resourceDirs.Add(subdir);
+                    }
+                    stack.Push(subdir);
+                }
+            }
+
+            return resourceDirs.ToArray();
+        }
+
+        private string AssetPathFromResourcePath(string resourcePath)
+        {
+            string[] resourceRoots = GetResourceRoots();
+            foreach (string root in resourceRoots) {
+                string fullPath = Path.Combine(root, resourcePath) + ".prefab";
+                if (File.Exists(fullPath)) {
+                    string unitySlashes = fullPath.Replace(Path.DirectorySeparatorChar, '/'); ;
+                    return unitySlashes.Replace("./", "");
+                }
+            }
+            return "";
+        }
+
+        private string ResourcePathFromAssetPath(string assetPath)
+        {
+            string[] parts = assetPath.Split('/');
+            int resourcesIndex = -1;
+            for (int i = 0, ilen = parts.Length; i < ilen; ++i) {
+                string part = parts[i];
+                if (part.ToLower() == "resources") {
+                    resourcesIndex = i;
+                    break;
+                }
+            }
+
+            if (resourcesIndex < 0) {
+                return "";
+            }
+
+            string lastPart = parts[parts.Length - 1];
+            string[] fileNameParts = lastPart.Split('.');
+            parts[parts.Length - 1] = string.Join(".", fileNameParts, 0, fileNameParts.Length - 1);
+            return string.Join("/", parts, resourcesIndex + 1, parts.Length - resourcesIndex - 1);
+        }
+
 
         private int GetIndexFromQualifiedTypeName(string name) {
             for (int i = 0, ilen = _types.Count; i < ilen; ++i) {
