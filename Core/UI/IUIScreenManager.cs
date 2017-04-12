@@ -1,5 +1,4 @@
-
-using SFuller.SharpGameLibs.Core.IOC;
+using System;
 
 namespace SFuller.SharpGameLibs.Core.UI
 {
