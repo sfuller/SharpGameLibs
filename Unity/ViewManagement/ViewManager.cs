@@ -150,6 +150,8 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
             foreach (AssetDescriptor descriptor in prefabAssets) {
                 BindingTarget target = GetBindingTarget(descriptor.Type, descriptor.Tag);
                 AssetData data = GetAssetData(descriptor.Type, descriptor.Tag);
+                LogAssetLoadStart(descriptor);
+                LogAssetLoadFinish(descriptor);
                 data.LoadedObject = target.Prefab;
             }
 
@@ -162,6 +164,7 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
             foreach (AssetDescriptor descriptor in resourceAssets) {
                 BindingTarget target = GetBindingTarget(descriptor.Type, descriptor.Tag);
                 ResourceOperation op = new ResourceOperation(_updates, descriptor, target.ResourcePath);
+                LogAssetLoadStart(descriptor);
                 handle.Operations.AddOperation(op);
             }
 
@@ -180,6 +183,7 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
                 AssetData data = GetAssetData(descriptor.Type, descriptor.Tag);
                 data.Handles.Remove(handle);
                 if (data.Handles.Count < 1) {
+                    LogAssetUnload(descriptor);
                     data.LoadedObject = null;
                 }
             }
@@ -190,18 +194,23 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
                 AssetData data = GetAssetData(descriptor.Type, descriptor.Tag);
                 data.Handles.Remove(handle);
                 if (data.Handles.Count < 1) {
-                    Resources.UnloadAsset(data.LoadedObject);
+                    LogAssetUnload(descriptor);
+                    //Resources.UnloadAsset(data.LoadedObject);
                 }
             }
         }
 
-        void IResourceGroupHandleOwner.AddLoadedAssets(ResourceGroupHandle handle, IEnumerable<AssetDescriptorAndPrefab> assets)
+        void IResourceGroupHandleOwner.AddLoadedAsset(ResourceGroupHandle handle, AssetDescriptorAndPrefab asset)
         {
-            foreach (AssetDescriptorAndPrefab asset in assets) {
-                AssetDescriptor descriptor = asset.Descriptor;
-                AssetData data = GetAssetData(descriptor.Type, descriptor.Tag);
-                data.LoadedObject = asset.Prefab;
-            }
+            AssetDescriptor descriptor = asset.Descriptor;
+            AssetData data = GetAssetData(descriptor.Type, descriptor.Tag);
+            data.LoadedObject = asset.Prefab;
+            LogAssetLoadFinish(descriptor);
+        }
+
+        void IResourceGroupHandleOwner.HandleStartingAssetLoad(AssetDescriptor descriptor)
+        {
+            LogAssetLoadStart(descriptor);
         }
 
         private void GetAssetDescriptorsByMechanism(IEnumerable<AssetDescriptor> descriptors, List<AssetDescriptor> prefabAssets, List<AssetDescriptor> resourceAssets)
@@ -225,6 +234,24 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
                 }
                 targetList.Add(descriptor);
             }
+        }
+
+        private void LogAssetLoadStart(AssetDescriptor descriptor)
+        {
+            _logger.LogInfo(string.Format("ViewManager: Starting to load asset: Type: {0}, Tag: {1}",
+                descriptor.Type, descriptor.Tag));
+        }
+
+        private void LogAssetLoadFinish(AssetDescriptor descriptor)
+        {
+            _logger.LogInfo(string.Format("ViewManager: Finished loading asset: Type: {0}, Tag: {1}",
+                descriptor.Type, descriptor.Tag));
+        }
+
+        private void LogAssetUnload(AssetDescriptor descriptor)
+        {
+            _logger.LogInfo(string.Format("ViewManager: Unloading asset: Type: {0}, Tag: {1}",
+                descriptor.Type, descriptor.Tag));
         }
 
         private readonly ViewRegistry _registry;
@@ -256,7 +283,8 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
     {
         void Load(ResourceGroupHandle handle);
         void Unload(ResourceGroupHandle handle);
-        void AddLoadedAssets(ResourceGroupHandle handle, IEnumerable<AssetDescriptorAndPrefab> assets);
+        void HandleStartingAssetLoad(AssetDescriptor descriptor);
+        void AddLoadedAsset(ResourceGroupHandle handle, AssetDescriptorAndPrefab asset);
     }
 
     class ResourceGroupHandle : IResourceGroupHandle
@@ -268,8 +296,7 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
             _owner = owner;
         }
 
-        public void HandleLoaded()
-        {
+        public void HandleLoaded() {
             var handler = Loaded;
             if (handler != null)
             {
@@ -277,37 +304,45 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
             }
         }
 
-        public void StartOperations()
-        {
-            Operations.Finished += HandleOperationsFinished;
+        public void StartOperations() {
+            Operations.Finished += HandleOperationFinished;
+            Operations.AllFinished += HandleAllOperationsFinished;
             Operations.Start();
         }
 
-        private void HandleOperationsFinished(object sender, EventArgs args)
-        {
-            Operations.Finished -= HandleOperationsFinished;
-            _owner.AddLoadedAssets(this, Operations.Data);
+        private void HandleStartingOperation(object sender, StartingOperationEventArgs args) {
+            _owner.HandleStartingAssetLoad(args.Descriptor);
+        }
+
+        private void HandleOperationFinished(object sender, OperationFinishedEventArgs args) {
+            _owner.AddLoadedAsset(this, args.Data);
+        }
+
+        private void HandleAllOperationsFinished(object sender, EventArgs args) {
             HandleLoaded();
         }
 
-        public void Load()
-        {
+        public void Load() {
             _owner.Load(this);
         }
 
-        public void Unload()
-        {
+        public void Unload() {
             _owner.Unload(this);
         }
 
         private readonly IResourceGroupHandleOwner _owner;
         public readonly List<AssetDescriptor> Assets;
-        public readonly OperationRunner<AssetDescriptorAndPrefab> Operations = new OperationRunner<AssetDescriptorAndPrefab>();
+        public readonly OperationRunner Operations = new OperationRunner();
     }
 
-    class OperationFinishedEventArgs<T> : EventArgs
+    class OperationFinishedEventArgs : EventArgs
     {
-        public T Data;
+        public AssetDescriptorAndPrefab Data;
+    }
+
+    class StartingOperationEventArgs : EventArgs
+    {
+        public AssetDescriptor Descriptor;
     }
 
     class AssetDescriptorAndPrefab
@@ -316,35 +351,39 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
         public GameObject Prefab;
     }
 
-    interface IOperation<T>
+    interface IAssetOperation
     {
-        event Action<object, OperationFinishedEventArgs<T>> Finished;
+        AssetDescriptor Descriptor { get; }
+        event Action<object, OperationFinishedEventArgs> Finished;
         void Start();
     }
 
-    class OperationRunner<T>
+    class OperationRunner
     {
-        public event Action<object, EventArgs> Finished;
+        public event Action<object, StartingOperationEventArgs> Starting;
+        public event Action<object, OperationFinishedEventArgs> Finished;
+        public event Action<object, EventArgs> AllFinished;
 
-        public IEnumerable<T> Data {  get { return _data; } }
-
-        public void AddOperation(IOperation<T> op) {
+        public void AddOperation(IAssetOperation op) {
             _nextOperations.Enqueue(op);
         }
 
         public void Start() {
-            HandleOperationFinished(this, new OperationFinishedEventArgs<T>());
+            HandleOperationFinished(this, new OperationFinishedEventArgs());
         }
 
-        private void HandleOperationFinished(object sender, OperationFinishedEventArgs<T> args) {
+        private void HandleOperationFinished(object sender, OperationFinishedEventArgs args) {
             if (_currentOperation != null) {
                 _currentOperation.Finished -= HandleOperationFinished;
-                _data.Add(args.Data);
+                var handler = Finished;
+                if (handler != null) {
+                    handler(this, args);
+                }
             }
 
             if (_nextOperations.Count < 1) {
                 // All operations finished
-                var handler = Finished;
+                var handler = AllFinished;
                 if (handler != null) {
                     handler(this, EventArgs.Empty);
                 }
@@ -353,17 +392,26 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
 
             _currentOperation = _nextOperations.Dequeue();
             _currentOperation.Finished += HandleOperationFinished;
+            HandleStartingOperation(_currentOperation); ;
             _currentOperation.Start();
         }
 
-        private IOperation<T> _currentOperation;
-        private readonly Queue<IOperation<T>> _nextOperations = new Queue<IOperation<T>>();
-        private readonly List<T> _data = new List<T>();
+        private void HandleStartingOperation(IAssetOperation op) {
+            var handler = Starting;
+            if (handler != null) {
+                handler(this, new StartingOperationEventArgs() { Descriptor = op.Descriptor });
+            }
+        }
+
+        private IAssetOperation _currentOperation;
+        private readonly Queue<IAssetOperation> _nextOperations = new Queue<IAssetOperation>();
     }
 
-    class ResourceOperation : IOperation<AssetDescriptorAndPrefab>, IUpdatable
+    class ResourceOperation : IAssetOperation, IUpdatable
     {
-        public event Action<object, OperationFinishedEventArgs<AssetDescriptorAndPrefab>> Finished;
+        public event Action<object, OperationFinishedEventArgs> Finished;
+
+        public AssetDescriptor Descriptor {  get { return _descriptor; } }
 
         public ResourceOperation(IUpdateManager updates, AssetDescriptor descriptor, string path) {
             _updates = updates;
@@ -381,7 +429,7 @@ namespace SFuller.SharpGameLibs.Unity.ViewManagement
                 _updates.Unregister(this);
                 var handler = Finished;
                 if (handler != null) {
-                    handler(this, new OperationFinishedEventArgs<AssetDescriptorAndPrefab>() {
+                    handler(this, new OperationFinishedEventArgs() {
                         Data = new AssetDescriptorAndPrefab() {
                             Descriptor = _descriptor,
                             Prefab = _request.asset as GameObject
